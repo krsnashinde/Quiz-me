@@ -1,242 +1,480 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Advanced Quiz App</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0e0f1a;
-      color: #ffffff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      background: #1a1b2e;
-      width: 900px;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 0 15px #000;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .hidden {
-      display: none;
-    }
-    input, select, button {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 8px;
-      border: none;
-      font-size: 16px;
-    }
-    button {
-      background: #4f46e5;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #3730a3;
-    }
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      font-size: 18px;
-    }
-    .quiz-box {
-      margin-top: 20px;
-      padding: 20px;
-      background: #252742;
-      border-radius: 10px;
-    }
-    .options button {
-      display: block;
-      width: 100%;
-      margin: 8px 0;
-      background: #3b3d5c;
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Quiz App — Shared Room + Scoreboard</title>
+
+<!-- Firebase (compat libs for simplicity) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+  :root{ --bg:#071028; --card:#0f1724; --muted:#9aa4c0; --accent:#6c8cff; --glass: rgba(255,255,255,0.03); }
+  *{box-sizing:border-box}
+  body{ margin:0; font-family:Inter,system-ui,Arial; background:linear-gradient(135deg,#071028,#0b1020); color:#e6eef8; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .app{ width:1100px; max-width:100%; display:grid; grid-template-columns:1fr 380px; gap:18px; }
+  .panel{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:12px; padding:18px; box-shadow:0 8px 26px rgba(2,6,23,0.6); }
+  .header{ display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .brand{ display:flex; gap:12px; align-items:center; }
+  .logo{ width:44px; height:44px; border-radius:10px; background:linear-gradient(135deg,var(--accent),#4cc2ff); display:flex; align-items:center; justify-content:center; font-weight:700; color:#06204e; }
+  h1{ font-size:20px; margin:0 }
+  .sub{ color:var(--muted); font-size:13px }
+  .box{ margin-top:8px }
+  input,select,button,textarea{ background:var(--glass); border:1px solid rgba(255,255,255,0.03); color:inherit; padding:10px 12px; border-radius:8px; outline:none; width:100%; font-size:14px; }
+  button.primary{ background:var(--accent); color:#071028; font-weight:600; border:none; cursor:pointer }
+  button.ghost{ background:transparent; border:1px solid rgba(255,255,255,0.05); color:var(--muted) }
+  .small{ font-size:13px; color:var(--muted) }
+
+  /* quiz */
+  .question{ font-size:18px; margin:10px 0 16px 0; min-height:56px; }
+  .options{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+  .opt{ padding:12px; border-radius:8px; background:rgba(255,255,255,0.02); cursor:pointer; border:1px solid rgba(255,255,255,0.02); transition:all .15s; text-align:center; }
+  .opt:hover{ transform:translateY(-3px); box-shadow:0 12px 26px rgba(4,10,40,0.5) }
+  .opt.correct{ background:linear-gradient(90deg,#8ef27a,#66d26d); color:#042410; border-color: rgba(0,0,0,0.15) }
+  .opt.wrong{ background:linear-gradient(90deg,#ff9b9b,#ff6b6b); color:#2a0707 }
+  .meta{ display:flex; justify-content:space-between; align-items:center; margin-top:12px }
+  .progress{ height:10px; background:rgba(255,255,255,0.03); border-radius:999px; overflow:hidden; width:100% }
+  .progress > i{ display:block; height:100%; background:linear-gradient(90deg,var(--accent),#4cc2ff); width:0% }
+
+  /* right */
+  .right{ display:flex; flex-direction:column; gap:12px; }
+  .card{ background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:10px; }
+  .title{ font-weight:700; margin-bottom:8px }
+  .online-list{ max-height:120px; overflow:auto }
+  .user-row{ display:flex; justify-content:space-between; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01); margin-bottom:8px }
+  .leader{ display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto }
+  .leader-row{ display:flex; justify-content:space-between; padding:8px; border-radius:8px; background:rgba(255,255,255,0.01) }
+
+  /* filters */
+  .filters{ display:flex; gap:8px; margin-bottom:8px; }
+  .attempts{ max-height:160px; overflow:auto; margin-top:8px }
+
+  @media (max-width:1000px){ .app{ grid-template-columns:1fr; padding:12px } .right{ order:2 } }
+</style>
 </head>
 <body>
-  <div class="container">
-
-    <!-- LOGIN SCREEN -->
-    <div id="loginScreen">
-      <h2>Register / Login</h2>
-      <input id="username" placeholder="Enter Username" />
-      <input id="password" type="password" placeholder="Enter Password" />
-      <button onclick="login()">Login</button>
-    </div>
-
-    <!-- CATEGORY SCREEN -->
-    <div id="categoryScreen" class="hidden">
-      <h2>Select Quiz Category</h2>
-      <select id="categorySelect">
-        <option value="sports">Sports</option>
-        <option value="general">General Knowledge</option>
-        <option value="history">History</option>
-        <option value="civics">Civics</option>
-      </select>
-      <button onclick="startQuiz()">Start Quiz</button>
-    </div>
-
-    <!-- QUIZ SCREEN -->
-    <div id="quizScreen" class="hidden">
-      <div class="top-bar">
-        <div>Score: <span id="score">0</span></div>
-        <div>Wrong: <span id="wrong">0</span></div>
-        <div id="clock">00:00</div>
+<div class="app">
+  <div class="panel">
+    <div class="header">
+      <div class="brand">
+        <div class="logo">Qz</div>
+        <div>
+          <h1>Quiz App — Shared Room</h1>
+          <div class="sub">Play & compete — leaderboard per category + fastest completions</div>
+        </div>
       </div>
-
-      <div class="quiz-box">
-        <h3 id="questionText">Question appears here</h3>
-        <div class="options" id="optionsBox"></div>
+      <div style="text-align:right">
+        <div class="small">Signed in as</div>
+        <div id="meName" style="font-weight:700">Not signed</div>
+        <div id="meUid" class="small" style="opacity:.6"></div>
       </div>
     </div>
 
-    <!-- RESULT SCREEN -->
-    <div id="resultScreen" class="hidden">
-      <h2>Quiz Completed!</h2>
-      <p>Your Score: <span id="finalScore"></span></p>
-      <button onclick="restart()">Restart</button>
+    <!-- Login -->
+    <div id="loginBox" class="box">
+      <div style="display:flex;gap:8px">
+        <input id="username" placeholder="Choose username" />
+        <input id="password" type="password" placeholder="Password (local)" />
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="primary" onclick="localRegister()">Register (local)</button>
+        <button class="ghost" onclick="localLogin()">Login (local)</button>
+      </div>
+      <div class="small" style="margin-top:8px">Credentials stored locally for demo. Firebase anonymous auth used for presence & scoreboard.</div>
     </div>
 
+    <!-- Category -->
+    <div id="categoryBox" class="box" style="margin-top:12px;display:none">
+      <label class="small">Pick category</label>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <select id="categorySelect">
+          <option value="sports">Sports</option>
+          <option value="general">General Knowledge</option>
+          <option value="history">History</option>
+          <option value="civics">Civics</option>
+        </select>
+        <button class="primary" onclick="begin()">Start Quiz</button>
+      </div>
+    </div>
+
+    <!-- Quiz -->
+    <div id="quizArea" class="box" style="display:none">
+      <div class="meta">
+        <div><strong>Q <span id="qIndex">0</span>/10</strong></div>
+        <div class="small">Elapsed <span id="time">00:00</span></div>
+      </div>
+
+      <div class="question" id="questionText">Choose a category to begin</div>
+      <div class="options" id="optionsGrid"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px">
+        <div style="display:flex;gap:10px;align-items:center">
+          <div class="small">Score</div>
+          <div style="font-weight:700" id="liveScore">0</div>
+          <div class="small" style="margin-left:10px">Wrong <span id="liveWrong">0</span></div>
+        </div>
+
+        <div style="width:40%"><div class="progress"><i id="progressBar"></i></div></div>
+
+        <div><button class="ghost" onclick="finishNow()">Finish</button></div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="resultArea" class="box" style="display:none">
+      <h2>Quiz finished</h2>
+      <div class="small">Your score: <strong id="finalScore">0</strong> / 10</div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button class="primary" onclick="restart()">Play again</button>
+        <button class="ghost" onclick="saveAndReturn()">Save & Home</button>
+      </div>
+    </div>
+
+    <!-- Your attempts -->
+    <div class="box" id="attemptBox" style="margin-top:12px; display:none">
+      <div class="small">Your recent attempts</div>
+      <div class="attempts" id="attemptsList"></div>
+    </div>
   </div>
 
+  <!-- RIGHT column -->
+  <div class="right">
+    <div class="card">
+      <div class="title">Players Online (<span id="onlineCount">0</span>)</div>
+      <div class="online-list" id="onlineList"></div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="title">Leaderboard</div>
+        <div>
+          <select id="filterCategory" onchange="renderLeaderboard()">
+            <option value="all">All</option>
+            <option value="sports">Sports</option>
+            <option value="general">General</option>
+            <option value="history">History</option>
+            <option value="civics">Civics</option>
+          </select>
+          <select id="sortMode" onchange="renderLeaderboard()">
+            <option value="score">Best Score</option>
+            <option value="fast">Fastest (time)</option>
+          </select>
+        </div>
+      </div>
+      <div class="leader" id="leaderboard"></div>
+    </div>
+
+    <div class="card">
+      <div class="title">Top Fastest by Category</div>
+      <div id="fastestList"></div>
+    </div>
+  </div>
+</div>
+
 <script>
+// ---------------- uploaded file path (from your session) ----------------
+const uploadedFilePath = "/mnt/data/Screenshot 2025-11-20 112508.png";
+// ----------------------------------------------------------------------
 
-// Question Bank
-const quizData = {
-  sports: [
-    { q: "How many players are in a football team?", o: ["9", "10", "11", "12"], a: 2 },
-    { q: "What sport uses a shuttlecock?", o: ["Tennis", "Badminton", "Squash", "Cricket"], a: 1 },
-    { q: "Which country invented cricket?", o: ["India", "Australia", "England", "South Africa"], a: 2 },
-    { q: "How long is an Olympic swimming pool?", o: ["25m", "50m", "75m", "100m"], a: 1 },
-    { q: "Which sport has positions like pitcher?", o: ["Baseball", "Basketball", "Football", "Hockey"], a: 0 },
-    { q: "Which sport uses a hoop?", o: ["Football", "Tennis", "Basketball", "Cricket"], a: 2 },
-    { q: "Which sport uses a bow?", o: ["Javelin", "Archery", "Fencing", "Shooting"], a: 1 },
-    { q: "How many rings in Olympic logo?", o: ["3", "4", "5", "6"], a: 2 },
-    { q: "Which game has love score?", o: ["Cricket", "Tennis", "Hockey", "Golf"], a: 1 },
-    { q: "Which sport is Usain Bolt known for?", o: ["Swimming", "Running", "Cycling", "Boxing"], a: 1 }
-  ],
-
-  general: [
-    { q: "Capital of India?", o: ["Mumbai", "Delhi", "Chennai", "Kolkata"], a: 1 },
-    { q: "Largest planet?", o: ["Earth", "Mars", "Jupiter", "Venus"], a: 2 },
-    { q: "Fastest animal?", o: ["Cheetah", "Lion", "Horse", "Tiger"], a: 0 },
-    { q: "Water formula?", o: ["CO2", "H2O", "O2", "NaCl"], a: 1 },
-    { q: "Which is a programming language?", o: ["Python", "Snake", "Cobra", "Lizard"], a: 0 },
-    { q: "Sun rises in?", o: ["North", "South", "East", "West"], a: 2 },
-    { q: "Largest ocean?", o: ["Pacific", "Atlantic", "Indian", "Arctic"], a: 0 },
-    { q: "How many days in year?", o: ["356", "365", "366", "360"], a: 1 },
-    { q: "Inventor of bulb?", o: ["Newton", "Edison", "Einstein", "Tesla"], a: 1 },
-    { q: "Tallest animal?", o: ["Elephant", "Giraffe", "Horse", "Camel"], a: 1 }
-  ],
-
-  history: [
-    { q: "Who built Taj Mahal?", o: ["Akbar", "Shah Jahan", "Aurangzeb", "Humayun"], a: 1 },
-    { q: "First World War started in?", o: ["1914", "1920", "1939", "1900"], a: 0 },
-    { q: "Founder of Mughal Empire?", o: ["Babur", "Akbar", "Jahangir", "Shah Jahan"], a: 0 },
-    { q: "Who discovered India?", o: ["Columbus", "Vasco da Gama", "Marco Polo", "Cook"], a: 1 },
-    { q: "Capital of Maurya Empire?", o: ["Delhi", "Pataliputra", "Varanasi", "Agra"], a: 1 },
-    { q: "Who was Ashoka?", o: ["King", "Scientist", "Doctor", "Poet"], a: 0 },
-    { q: "Red Fort built by?", o: ["Akbar", "Shah Jahan", "Jahangir", "Humayun"], a: 1 },
-    { q: "Who wrote Ramayana?", o: ["Valmiki", "Tulsidas", "Vyasa", "Kalidasa"], a: 0 },
-    { q: "First Indian PM?", o: ["Gandhi", "Patel", "Nehru", "Rajaji"], a: 2 },
-    { q: "Battle of Plassey year?", o: ["1757", "1857", "1657", "1957"], a: 0 }
-  ],
-
-  civics: [
-    { q: "Longest written constitution?", o: ["USA", "India", "UK", "China"], a: 1 },
-    { q: "Head of State in India?", o: ["PM", "President", "CM", "Governor"], a: 1 },
-    { q: "How many states in India?", o: ["28", "29", "30", "31"], a: 0 },
-    { q: "Lok Sabha term?", o: ["4 years", "5 years", "6 years", "2 years"], a: 1 },
-    { q: "3-tier government?", o: ["Central", "State", "Local", "All"], a: 3 },
-    { q: "Who appoints PM?", o: ["President", "Chief Justice", "Cabinet", "People"], a: 0 },
-    { q: "Supreme law of India?", o: ["Act", "Bill", "Constitution", "Rules"], a: 2 },
-    { q: "Voting age in India?", o: ["16", "17", "18", "21"], a: 2 },
-    { q: "Panchayat term?", o: ["3 years", "4 years", "5 years", "6 years"], a: 2 },
-    { q: "Highest court?", o: ["HC", "SC", "DC", "PC"], a: 1 }
-  ]
+/* ========== FIREBASE CONFIG - REPLACE WITH YOURS ========== */
+const firebaseConfig = {
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME",
+  databaseURL: "REPLACE_ME",
+  projectId: "REPLACE_ME",
+  storageBucket: "REPLACE_ME",
+  messagingSenderId: "REPLACE_ME",
+  appId: "REPLACE_ME"
 };
 
-let selectedCategory;
-let questions = [];
-let index = 0;
-let score = 0;
-let wrong = 0;
-let timer;
-let seconds = 0;
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 
-function login() {
-  const user = username.value;
-  const pass = password.value;
-  if (user && pass) {
-    loginScreen.classList.add("hidden");
-    categoryScreen.classList.remove("hidden");
-  }
+/* -------- Local registration (demo) -------- */
+function localRegister(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  if(!u || !p){ alert('enter username & password'); return; }
+  const users = JSON.parse(localStorage.getItem('localUsers')||'{}');
+  if(users[u]){ alert('username exists'); return; }
+  users[u] = { password: p, created: Date.now() };
+  localStorage.setItem('localUsers', JSON.stringify(users));
+  alert('registered! now press Login');
 }
 
-function startQuiz() {
-  selectedCategory = categorySelect.value;
-  questions = quizData[selectedCategory];
-  categoryScreen.classList.add("hidden");
-  quizScreen.classList.remove("hidden");
-  startClock();
-  loadQuestion();
+function localLogin(){
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  const users = JSON.parse(localStorage.getItem('localUsers')||'{}');
+  if(!users[u] || users[u].password !== p){ alert('invalid creds'); return; }
+  localStorage.setItem('currentUser', u);
+  startSession(u);
 }
 
-function loadQuestion() {
-  const q = questions[index];
-  questionText.textContent = (index + 1) + ". " + q.q;
-  optionsBox.innerHTML = "";
-  q.o.forEach((opt, i) => {
-    const btn = document.createElement("button");
-    btn.textContent = opt;
-    btn.onclick = () => answer(i);
-    optionsBox.appendChild(btn);
+/* Auto-login */
+(function tryAuto(){ const u = localStorage.getItem('currentUser'); if(u) startSession(u); })();
+
+/* Firebase session & presence */
+let myUid = null;
+let myName = null;
+let presenceRef = null;
+
+function startSession(username){
+  myName = username;
+  auth.signInAnonymously()
+    .then(()=> {
+      myUid = auth.currentUser.uid;
+      document.getElementById('meName').textContent = myName;
+      document.getElementById('meUid').textContent = myUid;
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('categoryBox').style.display = '';
+      // presence
+      presenceRef = db.ref('presence/' + myUid);
+      presenceRef.set({ username: myName, lastSeen: Date.now() });
+      presenceRef.onDisconnect().remove();
+      listenPresence();
+      listenScores();
+      loadMyAttempts();
+    })
+    .catch(err => { console.error(err); alert('Firebase auth error: '+err.message); });
+}
+
+/* Presence listener */
+function listenPresence(){
+  db.ref('presence').on('value', snap => {
+    const data = snap.val() || {};
+    const keys = Object.keys(data);
+    document.getElementById('onlineCount').textContent = keys.length;
+    const list = document.getElementById('onlineList'); list.innerHTML='';
+    keys.forEach(k => {
+      const item = document.createElement('div');
+      item.className = 'user-row';
+      item.innerHTML = `<div>${escapeHtml(data[k].username)}</div><div class="small">${k===myUid?'<strong>you</strong>':''}</div>`;
+      list.appendChild(item);
+    });
   });
 }
 
-function answer(i) {
-  if (i === questions[index].a) score++;
-  else wrong++;
-
-  score.innerHTML = score;
-  wrong.innerHTML = wrong;
-
-  index++;
-  if (index === 10) return finish();
-  loadQuestion();
+/* Leaderboard: load all scores into local cache & render */
+let scoresCache = {}; // uid -> { username, score, category, timeSec, ts }
+function listenScores(){
+  db.ref('scores').on('value', snap => {
+    scoresCache = snap.val() || {};
+    renderLeaderboard();
+    renderFastest();
+    loadMyAttempts(); // refresh my attempts view
+  });
 }
 
-function startClock() {
-  timer = setInterval(() => {
-    seconds++;
-    let min = String(Math.floor(seconds / 60)).padStart(2, "0");
-    let sec = String(seconds % 60).padStart(2, "0");
-    clock.textContent = `${min}:${sec}`;
-  }, 1000);
+/* Save score entry: store under /attempts/<uid>/<pushid> and also update /scores/<uid> for top score */
+function saveAttemptToDB(score, category, timeSec){
+  if(!myUid) return;
+  const attemptRef = db.ref('attempts/' + myUid).push();
+  const attempt = { username: myName, score, category, timeSec, ts: Date.now() };
+  attemptRef.set(attempt);
+  // update user's top score if better or create
+  const cur = scoresCache[myUid];
+  const shouldUpdate = !cur || score > (cur.score||0) || (score === (cur.score||0) && timeSec < (cur.timeSec||99999));
+  if(shouldUpdate){
+    db.ref('scores/' + myUid).set({ username: myName, score, category, timeSec, ts: Date.now() });
+  }
 }
 
-function finish() {
-  clearInterval(timer);
-  quizScreen.classList.add("hidden");
-  resultScreen.classList.remove("hidden");
-  finalScore.textContent = score;
+/* Load my attempts (recent) */
+function loadMyAttempts(){
+  if(!myUid) return;
+  const listEl = document.getElementById('attemptsList');
+  listEl.innerHTML = '';
+  db.ref('attempts/' + myUid).limitToLast(20).once('value', snap => {
+    const data = snap.val() || {};
+    const arr = Object.keys(data).map(k => data[k]).sort((a,b)=>b.ts - a.ts);
+    arr.forEach(a => {
+      const el = document.createElement('div');
+      el.className = 'user-row';
+      const time = new Date(a.ts).toLocaleString();
+      el.innerHTML = `<div>${escapeHtml(a.category)} — ${a.score}/10</div><div class="small">${a.timeSec}s • ${time}</div>`;
+      listEl.appendChild(el);
+    });
+    document.getElementById('attemptBox').style.display = arr.length? '':'none';
+  });
 }
 
-function restart() {
-  location.reload();
+/* Render leaderboard with filter & sort */
+function renderLeaderboard(){
+  const filter = document.getElementById('filterCategory').value;
+  const sort = document.getElementById('sortMode').value;
+  const board = document.getElementById('leaderboard');
+  board.innerHTML = '';
+  const arr = Object.keys(scoresCache).map(k => ({ uid:k, ...scoresCache[k]}));
+  let filtered = arr;
+  if(filter !== 'all') filtered = arr.filter(x => x.category === filter);
+  if(sort === 'score') filtered.sort((a,b)=> (b.score - a.score) || (a.timeSec - b.timeSec));
+  else if(sort === 'fast') filtered.sort((a,b)=> (a.timeSec - b.timeSec) || (b.score - a.score));
+  filtered.slice(0,12).forEach((p,i) => {
+    const row = document.createElement('div');
+    row.className = 'leader-row';
+    row.innerHTML = `<div>${i+1}. ${escapeHtml(p.username)} <span class="small" style="margin-left:8px;color:var(--muted)">${escapeHtml(p.category)}</span></div><div style="font-weight:700">${p.score} <span class="small" style="margin-left:6px">${p.timeSec}s</span></div>`;
+    board.appendChild(row);
+  });
 }
+
+/* Fastest per category display */
+function renderFastest(){
+  const cats = ['sports','general','history','civics'];
+  const out = document.getElementById('fastestList'); out.innerHTML='';
+  const arr = Object.keys(scoresCache).map(k=>({uid:k,...scoresCache[k]}));
+  cats.forEach(c=>{
+    const byCat = arr.filter(x=>x.category===c);
+    if(byCat.length===0) return;
+    byCat.sort((a,b)=> a.timeSec - b.timeSec);
+    const top = byCat[0];
+    const el = document.createElement('div');
+    el.className = 'user-row';
+    el.innerHTML = `<div style="font-weight:700">${c}</div><div>${escapeHtml(top.username)} — ${top.score}/10 • ${top.timeSec}s</div>`;
+    out.appendChild(el);
+  });
+}
+
+/* ---------- Quiz logic (10 questions) ---------- */
+const quizData = {
+  sports: [
+    { q:"How many players are in a football team?", o:["9","10","11","12"], a:2 },
+    { q:"What sport uses a shuttlecock?", o:["Tennis","Badminton","Squash","Cricket"], a:1 },
+    { q:"Which country invented cricket?", o:["India","Australia","England","South Africa"], a:2 },
+    { q:"How long is an Olympic swimming pool?", o:["25m","50m","75m","100m"], a:1 },
+    { q:"Which sport has positions like pitcher?", o:["Baseball","Basketball","Football","Hockey"], a:0 },
+    { q:"Which sport uses a hoop?", o:["Football","Tennis","Basketball","Cricket"], a:2 },
+    { q:"Which sport uses a bow?", o:["Javelin","Archery","Fencing","Shooting"], a:1 },
+    { q:"How many rings in Olympic logo?", o:["3","4","5","6"], a:2 },
+    { q:"Which game has love score?", o:["Cricket","Tennis","Hockey","Golf"], a:1 },
+    { q:"Which sport is Usain Bolt known for?", o:["Swimming","Running","Cycling","Boxing"], a:1 }
+  ],
+  general: [
+    { q:"Capital of India?", o:["Mumbai","Delhi","Chennai","Kolkata"], a:1 },
+    { q:"Largest planet?", o:["Earth","Mars","Jupiter","Venus"], a:2 },
+    { q:"Fastest animal?", o:["Cheetah","Lion","Horse","Tiger"], a:0 },
+    { q:"Water formula?", o:["CO2","H2O","O2","NaCl"], a:1 },
+    { q:"Which is a programming language?", o:["Python","Snake","Cobra","Lizard"], a:0 },
+    { q:"Sun rises in?", o:["North","South","East","West"], a:2 },
+    { q:"Largest ocean?", o:["Pacific","Atlantic","Indian","Arctic"], a:0 },
+    { q:"How many days in year?", o:["356","365","366","360"], a:1 },
+    { q:"Inventor of bulb?", o:["Newton","Edison","Einstein","Tesla"], a:1 },
+    { q:"Tallest animal?", o:["Elephant","Giraffe","Horse","Camel"], a:1 }
+  ],
+  history: [
+    { q:"Who built Taj Mahal?", o:["Akbar","Shah Jahan","Aurangzeb","Humayun"], a:1 },
+    { q:"First World War started in?", o:["1914","1920","1939","1900"], a:0 },
+    { q:"Founder of Mughal Empire?", o:["Babur","Akbar","Jahangir","Shah Jahan"], a:0 },
+    { q:"Who discovered India?", o:["Columbus","Vasco da Gama","Marco Polo","Cook"], a:1 },
+    { q:"Capital of Maurya Empire?", o:["Delhi","Pataliputra","Varanasi","Agra"], a:1 },
+    { q:"Who was Ashoka?", o:["King","Scientist","Doctor","Poet"], a:0 },
+    { q:"Red Fort built by?", o:["Akbar","Shah Jahan","Jahangir","Humayun"], a:1 },
+    { q:"Who wrote Ramayana?", o:["Valmiki","Tulsidas","Vyasa","Kalidasa"], a:0 },
+    { q:"First Indian PM?", o:["Gandhi","Patel","Nehru","Rajaji"], a:2 },
+    { q:"Battle of Plassey year?", o:["1757","1857","1657","1957"], a:0 }
+  ],
+  civics: [
+    { q:"Longest written constitution?", o:["USA","India","UK","China"], a:1 },
+    { q:"Head of State in India?", o:["PM","President","CM","Governor"], a:1 },
+    { q:"How many states in India?", o:["28","29","30","31"], a:0 },
+    { q:"Lok Sabha term?", o:["4 years","5 years","6 years","2 years"], a:1 },
+    { q:"3-tier government?", o:["Central","State","Local","All"], a:3 },
+    { q:"Who appoints PM?", o:["President","Chief Justice","Cabinet","People"], a:0 },
+    { q:"Supreme law of India?", o:["Act","Bill","Constitution","Rules"], a:2 },
+    { q:"Voting age in India?", o:["16","17","18","21"], a:2 },
+    { q:"Panchayat term?", o:["3 years","4 years","5 years","6 years"], a:2 },
+    { q:"Highest court?", o:["HC","SC","DC","PC"], a:1 }
+  ]
+};
+
+let selectedCategory = null;
+let questions = [];
+let qi = 0, score = 0, wrong = 0;
+let elapsed = 0, timer = null;
+
+/* UI refs */
+function id(x){ return document.getElementById(x); }
+const questionText = id('questionText');
+const optionsGrid = id('optionsGrid');
+const qIndex = id('qIndex');
+const timeEl = id('time');
+const liveScore = id('liveScore');
+const liveWrong = id('liveWrong');
+const progressBar = id('progressBar');
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* Game flow */
+function begin(){
+  selectedCategory = id('categorySelect').value;
+  questions = shuffle(quizData[selectedCategory]).slice(0,10);
+  qi = 0; score = 0; wrong = 0; elapsed = 0;
+  id('liveScore').textContent = score;
+  id('liveWrong').textContent = wrong;
+  id('loginBox').style.display='none';
+  id('categoryBox').style.display='none';
+  id('quizArea').style.display='';
+  id('resultArea').style.display='none';
+  id('attemptBox').style.display='none';
+  loadQ();
+  startTimer();
+}
+
+function loadQ(){
+  const q = questions[qi];
+  qIndex.textContent = (qi+1);
+  questionText.textContent = q.q;
+  optionsGrid.innerHTML='';
+  q.o.forEach((opt,i)=>{
+    const btn = document.createElement('div');
+    btn.className='opt'; btn.textContent = opt;
+    btn.onclick = ()=> choose(i,btn);
+    optionsGrid.appendChild(btn);
+  });
+  updateProgress();
+}
+
+function choose(i,btn){
+  Array.from(optionsGrid.children).forEach(n=> n.onclick=null);
+  const correct = questions[qi].a;
+  if(i===correct){ score++; btn.classList.add('correct'); }
+  else{ wrong++; btn.classList.add('wrong'); Array.from(optionsGrid.children)[correct].classList.add('correct'); }
+  id('liveScore').textContent = score; id('liveWrong').textContent = wrong;
+  setTimeout(()=>{ qi++; if(qi>=10) finishQuiz(); else loadQ(); },700);
+}
+
+function finishQuiz(){
+  stopTimer();
+  id('quizArea').style.display='none';
+  id('resultArea').style.display='';
+  id('finalScore').textContent = score;
+  // save attempt (score + category + time)
+  saveAttemptToDB(score, selectedCategory, elapsed);
+  // refresh attempts view
+  loadMyAttempts();
+}
+
+function finishNow(){ qi=10; finishQuiz(); }
+function restart(){ id('categoryBox').style.display=''; id('loginBox').style.display='none'; id('quizArea').style.display='none'; id('resultArea').style.display='none'; }
+function saveAndReturn(){ restart(); }
+
+/* timer */
+function startTimer(){ stopTimer(); elapsed=0; timeEl.textContent='00:00'; timer=setInterval(()=>{ elapsed++; const m=String(Math.floor(elapsed/60)).padStart(2,'0'); const s=String(elapsed%60).padStart(2,'0'); timeEl.textContent=`${m}:${s}`; },1000); }
+function stopTimer(){ if(timer) clearInterval(timer); timer=null; }
+
+/* progress */
+function updateProgress(){ const pct = Math.round((qi/10)*100); const bar = id('progressBar'); if(bar) bar.style.width = pct+'%'; }
+
+/* shuffle */
+function shuffle(arr){ const copy = arr.slice(); for(let i=copy.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; } return copy; }
+
+/* -------------------------
+   helper & load if user stored
+   ------------------------- */
+(function showStoredUser(){ const cu=localStorage.getItem('currentUser'); if(cu){ try{ id('loginBox').style.display='none'; id('categoryBox').style.display=''; }catch(e){} } })();
 
 </script>
 </body>
