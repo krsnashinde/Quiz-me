@@ -1,201 +1,243 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Quiz App</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced Quiz App</title>
+  <style>
     body {
-        margin: 0;
-        font-family: "Poppins", sans-serif;
-        background: linear-gradient(135deg, #6a11cb, #2575fc);
-        height: 100vh;
-        overflow: hidden;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0e0f1a;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
-
     .container {
-        width: 90%;
-        max-width: 450px;
-        background: #fff;
-        padding: 25px;
-        border-radius: 20px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
-        animation: fadeIn 0.6s ease-out;
+      background: #1a1b2e;
+      width: 900px;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px #000;
     }
-
-    @keyframes fadeIn {
-        from {opacity: 0; transform: translateY(20px);}
-        to {opacity: 1; transform: translateY(0);}
-    }
-
     h2 {
-        text-align: center;
-        margin-bottom: 20px;
+      text-align: center;
+      margin-bottom: 20px;
     }
-
-    .btn {
-        width: 100%;
-        padding: 15px;
-        background: #2575fc;
-        color: #fff;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        font-size: 16px;
-        margin-top: 15px;
-        transition: 0.3s;
-    }
-
-    .btn:hover {
-        background: #1b5fd1;
-    }
-
-    .option {
-        padding: 14px;
-        background: #f1f1f1;
-        margin: 8px 0;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: 0.25s;
-        border: 2px solid transparent;
-    }
-
-    .option:hover {
-        background: #e0e0e0;
-    }
-
-    .correct {
-        background: #a4f3a1 !important;
-        border-color: #3bb33b !important;
-    }
-
-    .wrong {
-        background: #ffb2b2 !important;
-        border-color: #e63939 !important;
-    }
-
     .hidden {
-        display: none;
+      display: none;
     }
-
-    .progress {
-        height: 10px;
-        width: 100%;
-        background: #ddd;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        overflow: hidden;
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
     }
-
-    .progress-bar {
-        height: 100%;
-        width: 0%;
-        background: #2575fc;
-        transition: width 0.4s ease;
+    button {
+      background: #4f46e5;
+      color: white;
+      cursor: pointer;
     }
-</style>
+    button:hover {
+      background: #3730a3;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+    .quiz-box {
+      margin-top: 20px;
+      padding: 20px;
+      background: #252742;
+      border-radius: 10px;
+    }
+    .options button {
+      display: block;
+      width: 100%;
+      margin: 8px 0;
+      background: #3b3d5c;
+    }
+  </style>
 </head>
-
 <body>
+  <div class="container">
 
-<div class="container" id="quizBox">
-
-    <div class="progress">
-        <div class="progress-bar" id="progressBar"></div>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen">
+      <h2>Register / Login</h2>
+      <input id="username" placeholder="Enter Username" />
+      <input id="password" type="password" placeholder="Enter Password" />
+      <button onclick="login()">Login</button>
     </div>
 
-    <h2 id="question">Question will appear here</h2>
+    <!-- CATEGORY SCREEN -->
+    <div id="categoryScreen" class="hidden">
+      <h2>Select Quiz Category</h2>
+      <select id="categorySelect">
+        <option value="sports">Sports</option>
+        <option value="general">General Knowledge</option>
+        <option value="history">History</option>
+        <option value="civics">Civics</option>
+      </select>
+      <button onclick="startQuiz()">Start Quiz</button>
+    </div>
 
-    <div id="options"></div>
+    <!-- QUIZ SCREEN -->
+    <div id="quizScreen" class="hidden">
+      <div class="top-bar">
+        <div>Score: <span id="score">0</span></div>
+        <div>Wrong: <span id="wrong">0</span></div>
+        <div id="clock">00:00</div>
+      </div>
 
-    <button class="btn hidden" id="nextBtn">Next Question</button>
-</div>
+      <div class="quiz-box">
+        <h3 id="questionText">Question appears here</h3>
+        <div class="options" id="optionsBox"></div>
+      </div>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="resultScreen" class="hidden">
+      <h2>Quiz Completed!</h2>
+      <p>Your Score: <span id="finalScore"></span></p>
+      <button onclick="restart()">Restart</button>
+    </div>
+
+  </div>
 
 <script>
-const quizData = [
-    {
-        question: "Which language is used for styling web pages?",
-        options: ["HTML", "CSS", "Python", "Java"],
-        answer: "CSS"
-    },
-    {
-        question: "What does HTML stand for?",
-        options: ["Home Tool Markup Language", "Hyper Text Markup Language", "Hyperlinks and Text Markup Language", "None"],
-        answer: "Hyper Text Markup Language"
-    },
-    {
-        question: "Which language runs in a web browser?",
-        options: ["Java", "C", "Python", "JavaScript"],
-        answer: "JavaScript"
-    }
-];
 
-let index = 0;
-let score = 0;
+// Question Bank
+const quizData = {
+  sports: [
+    { q: "How many players are in a football team?", o: ["9", "10", "11", "12"], a: 2 },
+    { q: "What sport uses a shuttlecock?", o: ["Tennis", "Badminton", "Squash", "Cricket"], a: 1 },
+    { q: "Which country invented cricket?", o: ["India", "Australia", "England", "South Africa"], a: 2 },
+    { q: "How long is an Olympic swimming pool?", o: ["25m", "50m", "75m", "100m"], a: 1 },
+    { q: "Which sport has positions like pitcher?", o: ["Baseball", "Basketball", "Football", "Hockey"], a: 0 },
+    { q: "Which sport uses a hoop?", o: ["Football", "Tennis", "Basketball", "Cricket"], a: 2 },
+    { q: "Which sport uses a bow?", o: ["Javelin", "Archery", "Fencing", "Shooting"], a: 1 },
+    { q: "How many rings in Olympic logo?", o: ["3", "4", "5", "6"], a: 2 },
+    { q: "Which game has love score?", o: ["Cricket", "Tennis", "Hockey", "Golf"], a: 1 },
+    { q: "Which sport is Usain Bolt known for?", o: ["Swimming", "Running", "Cycling", "Boxing"], a: 1 }
+  ],
 
-const questionEl = document.getElementById("question");
-const optionsEl = document.getElementById("options");
-const nextBtn = document.getElementById("nextBtn");
-const progressBar = document.getElementById("progressBar");
+  general: [
+    { q: "Capital of India?", o: ["Mumbai", "Delhi", "Chennai", "Kolkata"], a: 1 },
+    { q: "Largest planet?", o: ["Earth", "Mars", "Jupiter", "Venus"], a: 2 },
+    { q: "Fastest animal?", o: ["Cheetah", "Lion", "Horse", "Tiger"], a: 0 },
+    { q: "Water formula?", o: ["CO2", "H2O", "O2", "NaCl"], a: 1 },
+    { q: "Which is a programming language?", o: ["Python", "Snake", "Cobra", "Lizard"], a: 0 },
+    { q: "Sun rises in?", o: ["North", "South", "East", "West"], a: 2 },
+    { q: "Largest ocean?", o: ["Pacific", "Atlantic", "Indian", "Arctic"], a: 0 },
+    { q: "How many days in year?", o: ["356", "365", "366", "360"], a: 1 },
+    { q: "Inventor of bulb?", o: ["Newton", "Edison", "Einstein", "Tesla"], a: 1 },
+    { q: "Tallest animal?", o: ["Elephant", "Giraffe", "Horse", "Camel"], a: 1 }
+  ],
 
-function loadQuestion() {
-    const data = quizData[index];
-    questionEl.textContent = data.question;
-    optionsEl.innerHTML = "";
+  history: [
+    { q: "Who built Taj Mahal?", o: ["Akbar", "Shah Jahan", "Aurangzeb", "Humayun"], a: 1 },
+    { q: "First World War started in?", o: ["1914", "1920", "1939", "1900"], a: 0 },
+    { q: "Founder of Mughal Empire?", o: ["Babur", "Akbar", "Jahangir", "Shah Jahan"], a: 0 },
+    { q: "Who discovered India?", o: ["Columbus", "Vasco da Gama", "Marco Polo", "Cook"], a: 1 },
+    { q: "Capital of Maurya Empire?", o: ["Delhi", "Pataliputra", "Varanasi", "Agra"], a: 1 },
+    { q: "Who was Ashoka?", o: ["King", "Scientist", "Doctor", "Poet"], a: 0 },
+    { q: "Red Fort built by?", o: ["Akbar", "Shah Jahan", "Jahangir", "Humayun"], a: 1 },
+    { q: "Who wrote Ramayana?", o: ["Valmiki", "Tulsidas", "Vyasa", "Kalidasa"], a: 0 },
+    { q: "First Indian PM?", o: ["Gandhi", "Patel", "Nehru", "Rajaji"], a: 2 },
+    { q: "Battle of Plassey year?", o: ["1757", "1857", "1657", "1957"], a: 0 }
+  ],
 
-    progressBar.style.width = ((index) / quizData.length) * 100 + "%";
-
-    data.options.forEach(option => {
-        const div = document.createElement("div");
-        div.classList.add("option");
-        div.textContent = option;
-        div.onclick = () => selectOption(div, data.answer);
-        optionsEl.appendChild(div);
-    });
-
-    nextBtn.classList.add("hidden");
-}
-
-function selectOption(selected, correct) {
-    const options = document.querySelectorAll(".option");
-
-    options.forEach(opt => {
-        opt.style.pointerEvents = "none";
-        if (opt.textContent === correct) opt.classList.add("correct");
-    });
-
-    if (selected.textContent !== correct) {
-        selected.classList.add("wrong");
-    } else {
-        score++;
-    }
-
-    nextBtn.classList.remove("hidden");
-}
-
-nextBtn.onclick = () => {
-    index++;
-    if (index < quizData.length) {
-        loadQuestion();
-    } else {
-        showScore();
-    }
+  civics: [
+    { q: "Longest written constitution?", o: ["USA", "India", "UK", "China"], a: 1 },
+    { q: "Head of State in India?", o: ["PM", "President", "CM", "Governor"], a: 1 },
+    { q: "How many states in India?", o: ["28", "29", "30", "31"], a: 0 },
+    { q: "Lok Sabha term?", o: ["4 years", "5 years", "6 years", "2 years"], a: 1 },
+    { q: "3-tier government?", o: ["Central", "State", "Local", "All"], a: 3 },
+    { q: "Who appoints PM?", o: ["President", "Chief Justice", "Cabinet", "People"], a: 0 },
+    { q: "Supreme law of India?", o: ["Act", "Bill", "Constitution", "Rules"], a: 2 },
+    { q: "Voting age in India?", o: ["16", "17", "18", "21"], a: 2 },
+    { q: "Panchayat term?", o: ["3 years", "4 years", "5 years", "6 years"], a: 2 },
+    { q: "Highest court?", o: ["HC", "SC", "DC", "PC"], a: 1 }
+  ]
 };
 
-function showScore() {
-    document.getElementById("quizBox").innerHTML = `
-        <h2 style="text-align:center;">Quiz Completed 🎉</h2>
-        <h3 style="text-align:center;">Your Score: ${score} / ${quizData.length}</h3>
-        <button class="btn" onclick="location.reload()">Restart Quiz</button>
-    `;
+let selectedCategory;
+let questions = [];
+let index = 0;
+let score = 0;
+let wrong = 0;
+let timer;
+let seconds = 0;
+
+function login() {
+  const user = username.value;
+  const pass = password.value;
+  if (user && pass) {
+    loginScreen.classList.add("hidden");
+    categoryScreen.classList.remove("hidden");
+  }
 }
 
-loadQuestion();
-</script>
+function startQuiz() {
+  selectedCategory = categorySelect.value;
+  questions = quizData[selectedCategory];
+  categoryScreen.classList.add("hidden");
+  quizScreen.classList.remove("hidden");
+  startClock();
+  loadQuestion();
+}
 
+function loadQuestion() {
+  const q = questions[index];
+  questionText.textContent = (index + 1) + ". " + q.q;
+  optionsBox.innerHTML = "";
+  q.o.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = opt;
+    btn.onclick = () => answer(i);
+    optionsBox.appendChild(btn);
+  });
+}
+
+function answer(i) {
+  if (i === questions[index].a) score++;
+  else wrong++;
+
+  score.innerHTML = score;
+  wrong.innerHTML = wrong;
+
+  index++;
+  if (index === 10) return finish();
+  loadQuestion();
+}
+
+function startClock() {
+  timer = setInterval(() => {
+    seconds++;
+    let min = String(Math.floor(seconds / 60)).padStart(2, "0");
+    let sec = String(seconds % 60).padStart(2, "0");
+    clock.textContent = `${min}:${sec}`;
+  }, 1000);
+}
+
+function finish() {
+  clearInterval(timer);
+  quizScreen.classList.add("hidden");
+  resultScreen.classList.remove("hidden");
+  finalScore.textContent = score;
+}
+
+function restart() {
+  location.reload();
+}
+
+</script>
 </body>
 </html>
